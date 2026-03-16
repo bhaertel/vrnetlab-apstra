@@ -3,7 +3,7 @@
 
 Use in combination with the srl-labs vrnetlab fork: https://github.com/srl-labs/vrnetlab
 
-Create a new directory called `apstra ` under `vrnetlab/juniper/apstra` and copy the content of this repo there.
+Create a new directory called `apstra` under `vrnetlab/juniper/` and copy the content of this repo there.
 
 ## Build instructions
 
