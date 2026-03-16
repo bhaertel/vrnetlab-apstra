@@ -119,6 +119,46 @@ class Apstra_vm(vrnetlab.VM):
 
         self.nic_type = "virtio-net-pci"
 
+        # Add Apstra agent binary protocol ports (Sysdb) to the hostfwd rules
+        for port in range(29730, 29740):          
+            self.mgmt_tcp_ports.append(port)
+
+        # ── persistent overlay ────────────────────────────────────────────────
+        if os.path.isdir("/state"):
+            persistent_overlay = "/state/apstra_overlay.qcow2"
+
+            if not os.path.exists(persistent_overlay):
+                vrnetlab.run_command([
+                    "qemu-img", "create",
+                    "-f", "qcow2",
+                    "-b", disk_image,
+                    "-F", "qcow2",
+                    persistent_overlay,
+                ])
+                self.logger.info("Created persistent overlay at %s", persistent_overlay)
+            else:
+                self.logger.info(
+                    "Reusing existing persistent overlay at %s", persistent_overlay
+                )
+
+            # Patch the -drive argument that super().__init__() already wrote
+            # into self.qemu_args — replace its file= path with the persistent
+            # overlay so QEMU actually writes state to /state/
+            for i, arg in enumerate(self.qemu_args):
+                if "file=" in arg and "-overlay" in arg:
+                    self.qemu_args[i] = arg.split("file=")[0] + \
+                                        "file=" + persistent_overlay
+                    self.logger.info(
+                        "Patched qemu_args drive to use persistent overlay"
+                    )
+                    break
+        else:
+            self.logger.warning(
+                "/state not mounted — overlay is ephemeral and will not "
+                "survive clab destroy. Create the bind-mount directory to "
+                "enable persistence."
+            )
+
     # ── bootstrap ─────────────────────────────────────────────────────────────
 
     def bootstrap_spin(self):
@@ -192,6 +232,11 @@ if __name__ == "__main__":
         "--password",
         default="admin",
         help="Apstra admin password (default: admin)",
+    )
+    parser.add_argument(
+        "--hostname",
+        default="apstra",
+        help="VM hostname (passed by containerlab generic_vm kind, not used by Apstra)",
     )
     parser.add_argument(
         "--connection-mode",
